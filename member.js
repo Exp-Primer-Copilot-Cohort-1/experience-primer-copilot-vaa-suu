@@ -1,12 +1,12 @@
-function skillmember() {
-    var member = {
-        name: "John",
-        age: 30,
-        skills: ["JavaScript", "React", "Node"],
-        details: {
-            address: "Bangalore",
-            pincode: 560016
-        }
-    };
-    return member;
+function skillsMember() {
+    var member = document.getElementById("member");
+    var member = member.value;
+    if (member == "") {
+        document.getElementById("msgmember").innerHTML = "Please enter member name";
+        return false;
+    }
+    else {
+        document.getElementById("msgmember").innerHTML = "";
+        return true;
+    }
 }
