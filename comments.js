@@ -1,84 +1,88 @@
 // create web server
-var http = require('http');
-var fs = require('fs');
-var path = require('path');
-var url = require('url');
-
-var comments = {
-  '1': 'This is a comment',
-  '2': 'This is another comment',
-  '3': 'This is yet another comment'
-};
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const url = require('url');
+const comments = require('./comments');
 
 // create server
-http.createServer(function(req, res) {
-  var urlObj = url.parse(req.url, true);
-  var pathname = urlObj.pathname;
-  var query = urlObj.query;
+http.createServer((req, res) => {
+    // parse url
+    const parsedUrl = url.parse(req.url, true);
+    // get query string
+    const query = parsedUrl.query;
+    // get pathname
+    const pathname = parsedUrl.pathname;
 
-  if (pathname === '/') {
-    pathname = '/index.html';
-  }
-
-  // handle read
-  if (pathname === '/index.html') {
-    var filePath = path.join(__dirname, pathname);
-    fs.readFile(filePath, 'utf-8', function(err, data) {
-      if (err) {
-        console.log(err);
-        res.writeHead(404, 'Not Found', {
-          'Content-Type': 'text/plain'
+    // handle request
+    if (pathname === '/api/comments' && req.method === 'GET') {
+        // get comments
+        comments.getComments((err, data) => {
+            if (err) {
+                res.writeHead(500, { 'Content-Type': 'text/plain' });
+                res.end('Server Error');
+            } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(data));
+            }
         });
-        res.end('Not Found');
-      } else {
-        res.writeHead(200, 'OK', {
-          'Content-Type': 'text/html'
+    } else if (pathname === '/api/comments' && req.method === 'POST') {
+        // read data
+        let body = '';
+        req.on('data', (chunk) => {
+            body += chunk;
         });
-        res.end(data);
-      }
-    });
-  }
-
-  // handle write
-  else if (pathname === '/addComment') {
-    var comment = query.comment;
-    var id = new Date().getTime();
-    comments[id] = comment;
-    res.writeHead(200, 'OK', {
-      'Content-Type': 'text/plain'
-    });
-    res.end('OK');
-  }
-
-  // handle read
-  else if (pathname === '/getComments') {
-    var data = [];
-    for (var i in comments) {
-      data.push(comments[i]);
+        req.on('end', () => {
+            body = JSON.parse(body);
+            // add comment
+            comments.addComment(body, (err, data) => {
+                if (err) {
+                    res.writeHead(500, { 'Content-Type': 'text/plain' });
+                    res.end('Server Error');
+                } else {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(data));
+                }
+            });
+        });
+    } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Page Not Found');
     }
-    res.writeHead(200, 'OK', {
-      'Content-Type': 'text/plain'
-    });
-    res.end(data.join('\n'));
-  }
+}).listen(3000, () => {
+    console.log('Server is running at http://localhost:3000/');
+});
 
-  // handle delete
-  else if (pathname === '/deleteComment') {
-    var id = query.id;
-    delete comments[id];
-    res.writeHead(200, 'OK', {
-      'Content-Type': 'text/plain'
-    });
-    res.end('OK');
-  }
+// Path: comments.js
+// read comments
+const fs = require('fs');
+const path = require('path');
 
-  // handle update
-  else if (pathname === '/updateComment') {
-    var id = query.id;
-    var comment = query.comment;
-    comments[id] = comment;
-    res.writeHead(200, 'OK', {
-      'Content-Type': 'text/plain'
+const commentsPath = path.join(__dirname, 'comments.json');
+
+const getComments = (callback) => {
+    fs.readFile(commentsPath, 'utf8', (err, data) => {
+        if (err) {
+            callback(err);
+        } else {
+            callback(null, JSON.parse(data));
+        }
     });
-    res.end('OK');
-  }
+};
+
+const addComment = (comment, callback) => {
+    getComments((err, data) => {
+        if (err) {
+            callback(err);
+        } else {
+            data.push(comment);
+            fs.writeFile(commentsPath, JSON.stringify(data), (err) => {
+                if (err) {
+                    callback(err);
+                } else {
+                    callback(null, data);
+                }
+            });
+        }
+    });
+}; // Add closing parenthesis here
